@@ -1,53 +1,402 @@
-import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react';
+import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check } from 'lucide-react';
 
-const Splash: React.FC = () => (
-  <div className="min-h-screen bg-background dark:bg-background text-foreground dark:text-foreground flex flex-col justify-center items-center p-4">
-    <Card className="w-[350px] max-w-full">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary">
-          Welcome to Your App
-        </CardTitle>
-        <CardDescription>
-          A Vite + TS + Tailwind + shadcn/ui template
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">
-          This template provides a minimal setup to get React working in Vite
-          with HMR and some ESLint rules.
-        </p>
-      </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row gap-4">
-        <Button asChild>
-          <a
-            href="https://vitejs.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn about Vite
-          </a>
-        </Button>
-        <Button asChild variant="outline">
-          <a
-            href="https://ui.shadcn.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Explore shadcn/ui
-          </a>
-        </Button>
-      </CardFooter>
-    </Card>
-  </div>
-);
+interface BilirubinResult {
+  photoThreshold: number;
+  exchangeThreshold: number;
+  recommendation: string;
+  urgency: 'normal' | 'moderate' | 'critical';
+  bilirubinLevel: number;
+}
 
-export default Splash;
+
+const BilirubinCalculator = () => {
+  const [gestationalAge, setGestationalAge] = useState('');
+  const [hoursOfLife, setHoursOfLife] = useState('');
+  const [hasRiskFactors, setHasRiskFactors] = useState(false);
+  const [bilirubinLevel, setBilirubinLevel] = useState('');
+  const [results, setResults] = useState<BilirubinResult | { error: string } | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // נתוני הטבלאות מהמסמך
+  const phototherapyData = {
+    noRisk: {
+      35: [6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 7.9, 8.1, 8.3, 8.5, 8.7, 8.9, 9.0, 9.2, 9.4, 9.6, 9.8, 9.9, 10.1, 10.3, 10.4, 10.6, 10.8, 10.9, 11.1, 11.3, 11.4, 11.6, 11.7, 11.9, 12.0, 12.2, 12.3, 12.5, 12.6, 12.8, 12.9, 13.1, 13.2, 13.4, 13.5, 13.6, 13.8, 13.9, 14.0, 14.2, 14.3, 14.4, 14.5, 14.7, 14.8, 14.9, 15.0, 15.1, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7, 16.8, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.5, 17.6, 17.7, 17.8, 17.8, 17.9, 18.0, 18.1, 18.1, 18.2, 18.3, 18.3, 18.4, 18.5, 18.5, 18.6, 18.6, 18.6, 18.6, 18.6, 18.6],
+      36: [6.9, 7.1, 7.3, 7.5, 7.7, 7.9, 8.1, 8.3, 8.5, 8.7, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 9.9, 10.1, 10.3, 10.5, 10.6, 10.8, 11.0, 11.2, 11.3, 11.5, 11.7, 11.8, 12.0, 12.1, 12.3, 12.5, 12.6, 12.8, 12.9, 13.1, 13.2, 13.4, 13.5, 13.7, 13.8, 13.9, 14.1, 14.2, 14.4, 14.5, 14.6, 14.8, 14.9, 15.0, 15.1, 15.3, 15.4, 15.5, 15.6, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.5, 16.6, 16.7, 16.8, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.4, 18.5, 18.6, 18.7, 18.8, 18.8, 18.9, 19.0, 19.0, 19.1, 19.2, 19.2, 19.3, 19.3, 19.3, 19.3, 19.3, 19.3],
+      37: [7.4, 7.6, 7.8, 8.0, 8.2, 8.4, 8.6, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 9.9, 10.1, 10.3, 10.5, 10.7, 10.8, 11.0, 11.2, 11.4, 11.5, 11.7, 11.9, 12.1, 12.2, 12.4, 12.5, 12.7, 12.9, 13.0, 13.2, 13.3, 13.5, 13.6, 13.8, 13.9, 14.1, 14.2, 14.4, 14.5, 14.7, 14.8, 15.0, 15.1, 15.2, 15.4, 15.5, 15.6, 15.8, 15.9, 16.0, 16.1, 16.3, 16.4, 16.5, 16.6, 16.7, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 19.0, 19.0, 19.1, 19.2, 19.3, 19.4, 19.4, 19.5, 19.6, 19.7, 19.7, 19.8, 19.9, 19.9, 20.0, 20.0, 20.1, 20.1, 20.1, 20.1],
+      38: [7.9, 8.1, 8.3, 8.5, 8.7, 8.9, 9.1, 9.3, 9.5, 9.7, 9.9, 10.1, 10.3, 10.5, 10.7, 10.8, 11.0, 11.2, 11.4, 11.6, 11.7, 11.9, 12.1, 12.3, 12.4, 12.6, 12.8, 12.9, 13.1, 13.3, 13.4, 13.6, 13.8, 13.9, 14.1, 14.2, 14.4, 14.5, 14.7, 14.8, 15.0, 15.1, 15.3, 15.4, 15.6, 15.7, 15.8, 16.0, 16.1, 16.2, 16.4, 16.5, 16.6, 16.8, 16.9, 17.0, 17.1, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.3, 19.4, 19.5, 19.5, 19.6, 19.7, 19.8, 19.9, 20.0, 20.0, 20.1, 20.2, 20.3, 20.3, 20.4, 20.5, 20.6, 20.6, 20.7, 20.7, 20.8, 20.8, 20.8, 20.8],
+      39: [8.4, 8.6, 8.8, 9.0, 9.3, 9.5, 9.7, 9.9, 10.0, 10.2, 10.4, 10.6, 10.8, 11.0, 11.2, 11.4, 11.6, 11.8, 11.9, 12.1, 12.3, 12.5, 12.7, 12.8, 13.0, 13.2, 13.3, 13.5, 13.7, 13.8, 14.0, 14.2, 14.3, 14.5, 14.7, 14.8, 15.0, 15.1, 15.3, 15.4, 15.6, 15.7, 15.9, 16.0, 16.2, 16.3, 16.4, 16.6, 16.7, 16.8, 17.0, 17.1, 17.2, 17.4, 17.5, 17.6, 17.8, 17.9, 18.0, 18.1, 18.2, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.3, 19.5, 19.6, 19.7, 19.7, 19.8, 19.9, 20.0, 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.6, 20.7, 20.8, 20.9, 21.0, 21.0, 21.1, 21.2, 21.3, 21.3, 21.4, 21.5, 21.5, 21.5, 21.5, 21.5],
+      40: [8.9, 9.1, 9.3, 9.6, 9.8, 10.0, 10.2, 10.4, 10.5, 10.7, 10.9, 11.1, 11.3, 11.5, 11.7, 11.9, 12.1, 12.2, 12.4, 12.6, 12.8, 13.0, 13.1, 13.3, 13.5, 13.6, 13.8, 14.0, 14.1, 14.3, 14.5, 14.6, 14.8, 15.0, 15.1, 15.3, 15.4, 15.6, 15.7, 15.9, 16.0, 16.2, 16.3, 16.4, 16.6, 16.7, 16.9, 17.0, 17.1, 17.3, 17.4, 17.5, 17.7, 17.8, 17.9, 18.0, 18.2, 18.3, 18.4, 18.5, 18.6, 18.8, 18.9, 19.0, 19.1, 19.2, 19.3, 19.4, 19.6, 19.7, 19.7, 19.8, 19.9, 20.0, 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.7, 20.8, 20.9, 21.0, 21.1, 21.1, 21.2, 21.3, 21.4, 21.4, 21.5, 21.6, 21.6, 21.7, 21.8, 21.8, 21.8, 21.8, 21.8]
+    },
+    withRisk: {
+      35: [4.9, 5.1, 5.3, 5.5, 5.6, 5.8, 6.0, 6.2, 6.4, 6.5, 6.7, 6.9, 7.1, 7.2, 7.4, 7.6, 7.7, 7.9, 8.1, 8.2, 8.4, 8.6, 8.7, 8.9, 9.0, 9.2, 9.3, 9.5, 9.6, 9.8, 9.9, 10.1, 10.2, 10.3, 10.5, 10.6, 10.8, 10.9, 11.0, 11.2, 11.3, 11.4, 11.5, 11.7, 11.8, 11.9, 12.0, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 13.0, 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 14.0, 14.1, 14.2, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.8, 14.8, 14.9, 15.0, 15.1, 15.1, 15.2, 15.3, 15.3, 15.4, 15.5, 15.5, 15.6, 15.7, 15.7, 15.8, 15.8, 15.9, 15.9, 16.0, 16.1, 16.1, 16.1, 16.2, 16.2, 16.2, 16.2],
+      36: [5.4, 5.6, 5.8, 6.0, 6.2, 6.3, 6.5, 6.7, 6.9, 7.1, 7.3, 7.4, 7.6, 7.8, 8.0, 8.1, 8.3, 8.5, 8.6, 8.8, 9.0, 9.1, 9.3, 9.4, 9.6, 9.8, 9.9, 10.1, 10.2, 10.4, 10.5, 10.7, 10.8, 11.0, 11.1, 11.2, 11.4, 11.5, 11.7, 11.8, 11.9, 12.1, 12.2, 12.3, 12.5, 12.6, 12.7, 12.8, 13.0, 13.1, 13.2, 13.3, 13.4, 13.5, 13.7, 13.8, 13.9, 14.0, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.8, 14.9, 15.0, 15.1, 15.2, 15.3, 15.4, 15.4, 15.5, 15.6, 15.7, 15.8, 15.8, 15.9, 16.0, 16.1, 16.1, 16.2, 16.3, 16.4, 16.4, 16.5, 16.6, 16.6, 16.7, 16.7, 16.8, 16.8, 16.9, 17.0, 17.0, 17.0, 17.0, 17.0, 17.0],
+      37: [5.9, 6.1, 6.3, 6.5, 6.7, 6.9, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0, 8.1, 8.3, 8.5, 8.7, 8.9, 9.0, 9.2, 9.4, 9.5, 9.7, 9.9, 10.0, 10.2, 10.4, 10.5, 10.7, 10.8, 11.0, 11.1, 11.3, 11.4, 11.6, 11.7, 11.9, 12.0, 12.2, 12.3, 12.4, 12.6, 12.7, 12.9, 13.0, 13.1, 13.2, 13.4, 13.5, 13.6, 13.8, 13.9, 14.0, 14.1, 14.2, 14.4, 14.5, 14.6, 14.7, 14.8, 14.9, 15.0, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.6, 16.7, 16.8, 16.9, 17.0, 17.0, 17.1, 17.2, 17.2, 17.3, 17.4, 17.4, 17.5, 17.6, 17.6, 17.7, 17.8, 17.8, 17.9, 18.0, 18.0, 18.0, 18.0],
+      38: [6.4, 6.6, 6.8, 7.0, 7.2, 7.3, 7.5, 7.7, 7.9, 8.1, 8.3, 8.5, 8.6, 8.8, 9.0, 9.2, 9.4, 9.5, 9.7, 9.9, 10.0, 10.2, 10.4, 10.5, 10.7, 10.8, 11.0, 11.2, 11.3, 11.5, 11.6, 11.8, 11.9, 12.1, 12.2, 12.4, 12.5, 12.7, 12.8, 12.9, 13.1, 13.2, 13.3, 13.5, 13.6, 13.7, 13.9, 14.0, 14.1, 14.2, 14.4, 14.5, 14.6, 14.7, 14.8, 14.9, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.6, 16.7, 16.8, 16.9, 17.0, 17.1, 17.1, 17.2, 17.3, 17.4, 17.4, 17.5, 17.6, 17.6, 17.7, 17.8, 17.8, 17.9, 18.0, 18.0, 18.1, 18.1, 18.2, 18.2, 18.2, 18.2, 18.2, 18.2]
+    }
+  };
+
+  const exchangeData = {
+    noRisk: {
+      35: [14.9, 15.0, 15.1, 15.3, 15.4, 15.6, 15.7, 15.8, 16.0, 16.1, 16.2, 16.4, 16.5, 16.6, 16.8, 16.9, 17.0, 17.2, 17.3, 17.4, 17.5, 17.7, 17.8, 17.9, 18.0, 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 20.0, 20.1, 20.2, 20.3, 20.5, 20.6, 20.7, 20.8, 20.9, 21.0, 21.1, 21.2, 21.3, 21.4, 21.5, 21.6, 21.7, 21.7, 21.8, 21.9, 22.0, 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.6, 22.7, 22.8, 22.9, 23.0, 23.1, 23.1, 23.2, 23.3, 23.4, 23.4, 23.5, 23.6, 23.7, 23.7, 23.8, 23.9, 23.9, 24.0, 24.1, 24.1, 24.2, 24.3, 24.3, 24.4, 24.4, 24.5, 24.5, 24.5, 24.5, 24.5, 24.5],
+      36: [15.9, 16.1, 16.2, 16.4, 16.5, 16.7, 16.8, 16.9, 17.1, 17.2, 17.4, 17.5, 17.7, 17.8, 17.9, 18.1, 18.2, 18.3, 18.5, 18.6, 18.7, 18.9, 19.0, 19.1, 19.2, 19.4, 19.5, 19.6, 19.7, 19.9, 20.0, 20.1, 20.2, 20.4, 20.5, 20.6, 20.7, 20.8, 20.9, 21.0, 21.2, 21.3, 21.4, 21.5, 21.6, 21.7, 21.8, 21.9, 22.0, 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 23.0, 23.1, 23.2, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7, 23.8, 23.8, 23.9, 24.0, 24.1, 24.1, 24.2, 24.3, 24.4, 24.4, 24.5, 24.6, 24.6, 24.7, 24.8, 24.8, 24.9, 25.0, 25.0, 25.1, 25.2, 25.2, 25.3, 25.3, 25.4, 25.4, 25.5, 25.5, 25.5, 25.5, 25.5, 25.5, 25.6],
+      37: [17.0, 17.1, 17.3, 17.5, 17.6, 17.8, 17.9, 18.1, 18.2, 18.4, 18.5, 18.7, 18.8, 18.9, 19.1, 19.2, 19.4, 19.5, 19.6, 19.8, 19.9, 20.1, 20.2, 20.3, 20.5, 20.6, 20.7, 20.8, 21.0, 21.1, 21.2, 21.3, 21.5, 21.6, 21.7, 21.8, 21.9, 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 23.0, 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7, 23.8, 23.9, 24.0, 24.1, 24.2, 24.3, 24.4, 24.5, 24.5, 24.6, 24.7, 24.8, 24.9, 24.9, 25.0, 25.1, 25.2, 25.2, 25.3, 25.4, 25.5, 25.5, 25.6, 25.7, 25.7, 25.8, 25.8, 25.9, 26.0, 26.0, 26.1, 26.1, 26.2, 26.2, 26.3, 26.3, 26.4, 26.4, 26.5, 26.5, 26.5, 26.6, 26.6, 26.6, 26.6, 26.6],
+      38: [18.0, 18.2, 18.4, 18.5, 18.7, 18.8, 19.0, 19.1, 19.3, 19.4, 19.6, 19.7, 19.9, 20.0, 20.1, 20.3, 20.4, 20.6, 20.7, 20.8, 21.0, 21.1, 21.2, 21.4, 21.5, 21.6, 21.7, 21.9, 22.0, 22.1, 22.2, 22.3, 22.4, 22.6, 22.7, 22.8, 22.9, 23.0, 23.1, 23.2, 23.3, 23.4, 23.5, 23.6, 23.7, 23.8, 23.9, 24.0, 24.1, 24.2, 24.3, 24.4, 24.5, 24.6, 24.7, 24.7, 24.8, 24.9, 25.0, 25.1, 25.2, 25.2, 25.3, 25.4, 25.5, 25.5, 25.6, 25.7, 25.7, 25.8, 25.9, 25.9, 26.0, 26.0, 26.1, 26.2, 26.2, 26.3, 26.3, 26.4, 26.4, 26.5, 26.5, 26.6, 26.6, 26.7, 26.7, 26.7, 26.8, 26.8, 26.9, 26.9, 26.9, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0]
+    },
+    withRisk: {
+      35: [13.1, 13.3, 13.4, 13.6, 13.7, 13.8, 14.0, 14.1, 14.3, 14.4, 14.5, 14.6, 14.8, 14.9, 15.0, 15.1, 15.3, 15.4, 15.5, 15.6, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.8, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.7, 17.8, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.5, 18.5, 18.6, 18.7, 18.8, 18.9, 18.9, 19.0, 19.1, 19.2, 19.2, 19.3, 19.4, 19.4, 19.5, 19.6, 19.6, 19.7, 19.8, 19.8, 19.9, 19.9, 20.0, 20.1, 20.1, 20.2, 20.2, 20.3, 20.3, 20.4, 20.4, 20.5, 20.5, 20.6, 20.6, 20.6, 20.7, 20.7, 20.8, 20.8, 20.8, 20.9, 20.9, 20.9, 21.0, 21.0, 21.0, 21.1, 21.1, 21.1, 21.1, 21.1, 21.1],
+      36: [13.7, 13.9, 14.0, 14.1, 14.3, 14.4, 14.5, 14.7, 14.8, 14.9, 15.1, 15.2, 15.3, 15.4, 15.6, 15.7, 15.8, 15.9, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.8, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.7, 19.8, 19.9, 20.0, 20.1, 20.1, 20.2, 20.3, 20.3, 20.4, 20.5, 20.6, 20.6, 20.7, 20.8, 20.8, 20.9, 20.9, 21.0, 21.1, 21.1, 21.2, 21.2, 21.3, 21.4, 21.4, 21.5, 21.5, 21.6, 21.6, 21.7, 21.7, 21.8, 21.8, 21.9, 21.9, 22.0, 22.0, 22.0, 22.1, 22.1, 22.1, 22.1, 22.1, 22.1],
+      37: [14.3, 14.4, 14.6, 14.7, 14.8, 15.0, 15.1, 15.2, 15.4, 15.5, 15.6, 15.7, 15.9, 16.0, 16.1, 16.2, 16.4, 16.5, 16.6, 16.7, 16.8, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.7, 17.8, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 20.0, 20.1, 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.7, 20.8, 20.9, 21.0, 21.1, 21.1, 21.2, 21.3, 21.4, 21.4, 21.5, 21.6, 21.7, 21.7, 21.8, 21.9, 21.9, 22.0, 22.1, 22.1, 22.2, 22.3, 22.3, 22.4, 22.5, 22.5, 22.6, 22.6, 22.7, 22.8, 22.8, 22.9, 22.9, 23.0, 23.0, 23.1, 23.1, 23.1, 23.1, 23.1, 23.1],
+      38: [14.8, 15.0, 15.1, 15.2, 15.4, 15.5, 15.6, 15.8, 15.9, 16.0, 16.1, 16.3, 16.4, 16.5, 16.6, 16.7, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.6, 17.7, 17.8, 17.9, 18.0, 18.1, 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 18.9, 19.0, 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 19.9, 20.0, 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.8, 20.8, 20.9, 21.0, 21.1, 21.2, 21.3, 21.3, 21.4, 21.5, 21.6, 21.7, 21.7, 21.8, 21.9, 22.0, 22.0, 22.1, 22.2, 22.2, 22.3, 22.4, 22.5, 22.5, 22.6, 22.7, 22.7, 22.8, 22.8, 22.9, 23.0, 23.0, 23.1, 23.1, 23.2, 23.3, 23.3, 23.4, 23.4, 23.5, 23.5, 23.5, 23.5, 23.5, 23.5, 23.5]
+    }
+  };
+
+  const getThreshold = (data: Record<number, number[]>, gestAge: number, hours: number): number | null => {
+    if (!data[gestAge] || hours < 1 || hours > 336) return null;
+    const index = Math.min(hours - 1, data[gestAge].length - 1);
+    return data[gestAge][index];
+  };
+
+  const toBoldDigits = (number: number): string => {
+    const boldDigits = ['𝟎', '𝟏', '𝟐', '𝟑', '𝟒', '𝟓', '𝟔', '𝟕', '𝟖', '𝟗'];
+    return number.toString().split('').map((char) => {
+      const digit = parseInt(char);
+      return isNaN(digit) ? char : boldDigits[digit];
+    }).join('');
+  };
+
+
+  const generateCopyText = () => {
+    if (!gestationalAge || !hoursOfLife) return '';
+    
+    const gestAge = parseInt(gestationalAge);
+    const hours = parseInt(hoursOfLife);
+    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
+    
+    const prefix = hasRiskFactors ? 'עם ג"ס - ' : 'בלי ג"ס - ';
+    const thresholds = [];
+    
+    for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
+      if (currentHour > 336) break; // מקסימום שעות בטבלה
+      const threshold = getThreshold(photoData, gestAge, currentHour);
+      if (threshold) {
+        const boldHour = toBoldDigits(currentHour);
+        thresholds.push(`${boldHour}←${threshold.toFixed(1)}`);
+      }
+    }
+    
+    return prefix + thresholds.join(', ');
+  };
+
+  const copyToClipboard = async () => {
+    const text = generateCopyText();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const calculateResults = () => {
+    if (!gestationalAge || !hoursOfLife || !bilirubinLevel) {
+      setResults(null);
+      return;
+    }
+
+    const gestAge = parseInt(gestationalAge);
+    const hours = parseInt(hoursOfLife);
+    const bilirubin = parseFloat(bilirubinLevel);
+
+    if (gestAge < 35 || gestAge > 40 || hours < 1 || hours > 336 || bilirubin < 0) {
+      setResults({ error: 'נתונים לא תקינים' });
+      return;
+    }
+
+    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
+    const exchangeDataSet = hasRiskFactors ? exchangeData.withRisk : exchangeData.noRisk;
+
+    const photoThreshold = getThreshold(photoData, gestAge, hours);
+    const exchangeThreshold = getThreshold(exchangeDataSet, gestAge, hours);
+
+    let recommendation = '';
+    let urgency = 'normal';
+
+    if (exchangeThreshold && bilirubin >= exchangeThreshold) {
+      recommendation = 'נדרש החלפת דם מיידית!';
+      urgency = 'critical';
+    } else if (photoThreshold && bilirubin >= photoThreshold) {
+      recommendation = 'נדרש טיפול באור (פוטותרפיה)';
+      urgency = 'moderate';
+    } else {
+      recommendation = 'המשך מעקב לפי פרוטוקול';
+      urgency = 'normal';
+    }
+
+    setResults({
+      photoThreshold,
+      exchangeThreshold,
+      recommendation,
+      urgency,
+      bilirubinLevel: bilirubin
+    });
+  };
+
+  useEffect(() => {
+    calculateResults();
+  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4" dir="rtl">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          input[type=number]::-webkit-outer-spin-button,
+          input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+        `
+      }} />
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Calculator className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-800">מחשבון רפי בילירובין</h1>
+          </div>
+          <p className="text-gray-600">טיפול באור והחלפת דם לתינוקות 35-40 שבועות</p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Input Panel */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Baby className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-semibold text-gray-800">נתוני התינוק</h2>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  גיל הריון (שבועות)
+                </label>
+                <select
+                  value={gestationalAge}
+                  onChange={(e) => setGestationalAge(e.target.value)}
+                  className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 appearance-none"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                    backgroundPosition: 'left 0.75rem center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: '1.5em 1.5em',
+                    paddingLeft: '2.5rem'
+                  }}
+                >
+                  <option value="">בחר גיל הריון</option>
+                  <option value="35">35 שבועות</option>
+                  <option value="36">36 שבועות</option>
+                  <option value="37">37 שבועות</option>
+                  <option value="38">38 שבועות</option>
+                  <option value="39">39 שבועות</option>
+                  <option value="40">40 שבועות</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  גיל בשעות מהלידה
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="336"
+                  value={hoursOfLife}
+                  onChange={(e) => setHoursOfLife(e.target.value)}
+                  placeholder="1-336 שעות"
+                  className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                  style={{
+                    MozAppearance: 'textfield'
+                  }}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  רמת בילירובין (mg/dL)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={bilirubinLevel}
+                  onChange={(e) => setBilirubinLevel(e.target.value)}
+                  placeholder="0.0"
+                  className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                  style={{
+                    MozAppearance: 'textfield'
+                  }}
+                  onWheel={(e) => e.target.blur()}
+                />
+              </div>
+
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={hasRiskFactors}
+                    onChange={(e) => setHasRiskFactors(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">
+                      קיימים גורמי סיכון לנוירוטוקסיות
+                    </span>
+                    <p className="text-xs text-gray-600 mt-1">
+                      גיל הריון &lt;38 שבועות, אלבומין &lt;3.0 g/dL, מחלה המוליטית איזואימונית, 
+                      חסר G6PD, ספסיס, או חוסר יציבות קלינית
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Panel */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Lightbulb className="w-6 h-6 text-green-600" />
+              <h2 className="text-xl font-semibold text-gray-800">תוצאות והמלצות</h2>
+            </div>
+
+            {results?.error ? (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="text-red-700">{results.error}</span>
+              </div>
+            ) : results ? (
+              <div className="space-y-6">
+                {/* Current Status */}
+                <div className={`p-4 rounded-lg border-2 ${
+                  results.urgency === 'critical' ? 'bg-red-50 border-red-200' :
+                  results.urgency === 'moderate' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-green-50 border-green-200'
+                }`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    {results.urgency === 'critical' ? (
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    ) : results.urgency === 'moderate' ? (
+                      <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                    ) : (
+                      <Info className="w-6 h-6 text-green-600" />
+                    )}
+                    <span className={`text-lg font-semibold ${
+                      results.urgency === 'critical' ? 'text-red-800' :
+                      results.urgency === 'moderate' ? 'text-yellow-800' :
+                      'text-green-800'
+                    }`}>
+                      {results.recommendation}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Thresholds */}
+                <div className="grid gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-blue-800 mb-2">רף לטיפול באור</h3>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {results.photoThreshold?.toFixed(1)} mg/dL
+                      </span>
+                      <span className={`text-sm ${
+                        results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                      }`}>
+                        {results.bilirubinLevel >= results.photoThreshold ? 'מעל הרף' : 'מתחת לרף'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-red-800 mb-2">רף להחלפת דם</h3>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-red-600">
+                        {results.exchangeThreshold?.toFixed(1)} mg/dL
+                      </span>
+                      <span className={`text-sm ${
+                        results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                      }`}>
+                        {results.bilirubinLevel >= results.exchangeThreshold ? 'מעל הרף' : 'מתחת לרף'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Bilirubin */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-800 mb-2">רמת בילירובין נוכחית</h3>
+                  <span className="text-3xl font-bold text-gray-700">
+                    {results.bilirubinLevel.toFixed(1)} mg/dL
+                  </span>
+                </div>
+
+                {/* Copy Button */}
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    onClick={copyToClipboard}
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 font-medium"
+                  >
+                    {copySuccess ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        הועתק לקליפבורד!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        העתק רפי פוטותרפיה
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>הזן את הנתונים לקבלת המלצות טיפול</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Info */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="text-sm text-gray-600">
+              <p className="font-semibold mb-2">הערות חשובות:</p>
+              <ul className="space-y-1">
+                <li>• מבוסס על ההנחיות של האקדמיה האמריקאית לרפואת ילדים 2022</li>
+                <li>• מתאים לתינוקות בגילאי הריון 35-40 שבועות</li>
+                <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
+                <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
+                <li className="mt-3 pt-2 border-t border-gray-200">
+                  <strong>מקור:</strong> Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., ... & Subcommittee on Hyperbilirubinemia. (2022). Clinical practice guideline revision: Management of hyperbilirubinemia in the newborn infant 35 or more weeks of gestation. <em>Pediatrics</em>, 150(3), e2022058859. 
+                  <a href="http://publications.aap.org/pediatrics/article-pdf/150/3/e2022058859/1375979/peds_2022058859.pdf" 
+                     target="_blank" 
+                     rel="noopener noreferrer" 
+                     className="text-blue-600 hover:text-blue-800 underline mr-1">
+                    קישור למאמר המקורי
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BilirubinCalculator;

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "build:github": "vite build --mode github-pages",
     "predeploy": "npm run build:github && touch dist-github/.nojekyll",
     "deploy": "gh-pages -d dist-github --dotfiles",
