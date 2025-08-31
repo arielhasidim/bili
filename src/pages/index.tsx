@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check } from 'lucide-react';
+import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check, ArrowLeftRight } from 'lucide-react';
 
 interface BilirubinResult {
   photoThreshold: number;
-  exchangeThreshold: number;
+  exchangeThreshold: number | null;
   recommendation: string;
   urgency: 'normal' | 'moderate' | 'critical';
   bilirubinLevel: number;
 }
 
-
 const BilirubinCalculator = () => {
+  type CareSetting = 'NICU' | 'Nursery'; // 'פגיה' | 'תינוקיה'
   const [gestationalAge, setGestationalAge] = useState('');
   const [hoursOfLife, setHoursOfLife] = useState('');
   const [hasRiskFactors, setHasRiskFactors] = useState(false);
   const [bilirubinLevel, setBilirubinLevel] = useState('');
   const [results, setResults] = useState<BilirubinResult | { error: string } | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [careSetting, setCareSetting] = useState<CareSetting>('Nursery');
 
-  // נתוני הטבלאות מהמסמך
+  // נתוני הטבלאות מהמסמך – פרוטוקול פגיה (קיימים בקוד המקורי)
   const phototherapyData = {
     noRisk: {
       35: [6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 7.9, 8.1, 8.3, 8.5, 8.7, 8.9, 9.0, 9.2, 9.4, 9.6, 9.8, 9.9, 10.1, 10.3, 10.4, 10.6, 10.8, 10.9, 11.1, 11.3, 11.4, 11.6, 11.7, 11.9, 12.0, 12.2, 12.3, 12.5, 12.6, 12.8, 12.9, 13.1, 13.2, 13.4, 13.5, 13.6, 13.8, 13.9, 14.0, 14.2, 14.3, 14.4, 14.5, 14.7, 14.8, 14.9, 15.0, 15.1, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 16.0, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7, 16.8, 16.9, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.5, 17.6, 17.7, 17.8, 17.8, 17.9, 18.0, 18.1, 18.1, 18.2, 18.3, 18.3, 18.4, 18.5, 18.5, 18.6, 18.6, 18.6, 18.6, 18.6, 18.6],
@@ -51,7 +52,41 @@ const BilirubinCalculator = () => {
     }
   };
 
-  const getThreshold = (data: Record<number, number[]>, gestAge: number, hours: number): number | null => {
+  // --- תינוקיה: דאטה ספציפי (ללא אינטרפולציה) ---
+  type SparseMap = Record<number, Record<number, number>>;
+  const nurseryPhototherapyNoRisk: SparseMap = {
+    35: { 0: 5, 12: 7.5, 18: 8.8, 20: 9.2, 24: 9.9, 28: 10.5, 32: 11.1, 36: 11.7, 40: 12.2, 44: 12.6, 48: 13.1, 52: 13.6, 56: 14.1, 60: 14.6, 64: 14.9, 68: 15.2, 72: 15.5, 76: 15.9, 80: 16.2, 84: 16.6, 88: 16.9, 92: 17.2, 96: 17.5, 100: 17.7, 104: 17.8, 108: 18 },
+    37: { 0: 5, 12: 7.5, 18: 8.5, 20: 9, 24: 9.5, 28: 10, 32: 11, 36: 11.5, 40: 12, 44: 12.5, 48: 13, 52: 13.5, 56: 14, 60: 14.5, 64: 14.5, 68: 15, 72: 15.5, 76: 15.5, 80: 16, 84: 16.5, 88: 16.5, 92: 17, 96: 17, 100: 17.5, 104: 17.5, 108: 18 },
+    38: { 0: 5, 12: 8, 18: 10.4, 20: 10.8, 24: 11.7, 28: 12.3, 32: 13, 36: 13.6, 40: 14.2, 44: 14.7, 48: 15.3, 52: 15.7, 56: 16.2, 60: 16.6, 64: 17, 68: 17.3, 72: 17.7, 76: 18.1, 80: 18.5, 84: 18.9, 88: 19.2, 92: 19.6, 96: 19.9, 100: 20.1, 104: 20.4, 108: 20.6 }
+  };
+  const nurseryPhototherapyWithRisk: SparseMap = {
+    35: { 0: 5, 12: 6, 18: 7, 20: 7.3, 24: 8, 28: 8.5, 32: 9.1, 36: 9.6, 40: 10.2, 44: 10.8, 48: 11.4, 52: 11.8, 56: 12.1, 60: 12.5, 64: 12.9, 68: 13.2, 72: 13.6, 76: 13.8, 80: 14, 84: 14.2, 88: 14.3, 92: 14.4, 96: 14.5, 100: 14.7, 104: 14.8, 108: 15 },
+    37: { 0: 4, 12: 6, 18: 7, 20: 7.5, 24: 7.5, 28: 8, 32: 9, 36: 9.5, 40: 10, 44: 10.5, 48: 11, 52: 11.5, 56: 12, 60: 12.5, 64: 12.5, 68: 13, 72: 13.5, 76: 13.5, 80: 14, 84: 14, 88: 14, 92: 14.5, 96: 14.5, 100: 14.5, 104: 14.8, 108: 15 },
+    38: { 0: 5, 12: 7.5, 18: 8.8, 20: 9.2, 24: 9.9, 28: 10.5, 32: 11.1, 36: 11.7, 40: 12.2, 44: 12.6, 48: 13.1, 52: 13.6, 56: 14.1, 60: 14.6, 64: 14.9, 68: 15.2, 72: 15.5, 76: 15.9, 80: 16.2, 84: 16.6, 88: 16.9, 92: 17.2, 96: 17.5, 100: 17.7, 104: 17.8, 108: 18 }
+  };
+
+  const normalizeNurseryWeek = (w: number) => {
+    if (w === 36) return 35;
+    if (w >= 38) return 38;
+    return w;
+  };
+
+const getNurseryThreshold = (sparse: SparseMap, gestAge: number, hours: number): number | null => {
+  const wk = normalizeNurseryWeek(gestAge);
+  const table = sparse[wk];
+  if (!table) return null;
+  // ללא אינטרפולציה: בחר את השעה הגדולה ביותר שאינה עולה על השעה המבוקשת (step)
+  const keys = Object.keys(table).map(Number).sort((a, b) => a - b);
+  let candidate: number | undefined = undefined;
+  for (const k of keys) {
+    if (k <= hours) candidate = k;
+    else break;
+  }
+  if (candidate === undefined) return null; // אין ערך עד השעה הזו
+  return table[candidate];
+};
+
+  const getNICUThreshold = (data: Record<number, number[]>, gestAge: number, hours: number): number | null => {
     if (!data[gestAge] || hours < 1 || hours > 336) return null;
     const index = Math.min(hours - 1, data[gestAge].length - 1);
     return data[gestAge][index];
@@ -65,27 +100,55 @@ const BilirubinCalculator = () => {
     }).join('');
   };
 
-
   const generateCopyText = () => {
     if (!gestationalAge || !hoursOfLife) return '';
-    
+
     const gestAge = parseInt(gestationalAge);
     const hours = parseInt(hoursOfLife);
-    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
-    
+
     const prefix = hasRiskFactors ? 'עם ג"ס - ' : 'בלי ג"ס - ';
-    const thresholds = [];
-    
-    for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
-      if (currentHour > 336) break; // מקסימום שעות בטבלה
-      const threshold = getThreshold(photoData, gestAge, currentHour);
-      if (threshold) {
-        const boldHour = toBoldDigits(currentHour);
-        thresholds.push(`${boldHour}←${threshold.toFixed(1)}`);
+    const thresholds: string[] = [];
+
+    if (careSetting === 'Nursery') {
+      const sparse = hasRiskFactors ? nurseryPhototherapyWithRisk : nurseryPhototherapyNoRisk;
+      const wk = normalizeNurseryWeek(gestAge);
+      const table = sparse[wk] || {};
+      const sortedHours = Object.keys(table).map(Number).sort((a, b) => a - b);
+      // STEP: להתחיל מהמדרגה האחרונה שאינה גדולה מהשעה המבוקשת (≤ hours)
+      let startIdx = -1;
+      for (let i = 0; i < sortedHours.length; i++) {
+        if (sortedHours[i] <= hours) startIdx = i;
+        else break;
+      }
+      if (startIdx < 0) startIdx = 0; // ביטחון – אמור להיות 0 קיים בדאטה
+      for (let i = startIdx; i < sortedHours.length; i++) {
+        const h = sortedHours[i];
+        if (h > hours + 72) break;
+        const val = table[h];
+        const bh = toBoldDigits(h);
+        thresholds.push(`${bh}←${val.toFixed(1)}`);
+      }
+    } else {
+      const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
+      for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
+        if (currentHour > 336) break;
+        const threshold = getNICUThreshold(photoData, gestAge, currentHour);
+        if (threshold !== null) {
+          const boldHour = toBoldDigits(currentHour);
+          thresholds.push(`${boldHour}←${threshold.toFixed(1)}`);
+        }
       }
     }
-    
-    return prefix + thresholds.join(', ');
+
+    if (thresholds.length === 0) return prefix.trim();
+
+    const first = thresholds[0].split('←');
+    const firstHour = first[0];
+    const firstVal = first[1];
+    const firstFormatted = `בשעה ${firstHour}← סף לטיפול באור ${Number(firstVal).toFixed(1)}`;
+    const rest = thresholds.slice(1);
+    const body = [firstFormatted, ...rest].join(', ');
+    return prefix + body;
   };
 
   const copyToClipboard = async () => {
@@ -109,24 +172,33 @@ const BilirubinCalculator = () => {
     const hours = parseInt(hoursOfLife);
     const bilirubin = parseFloat(bilirubinLevel);
 
-    if (gestAge < 35 || gestAge > 40 || hours < 1 || hours > 336 || bilirubin < 0) {
+    const hoursMin = careSetting === 'Nursery' ? 0 : 1;
+    if (gestAge < 35 || gestAge > 40 || hours < hoursMin || hours > 336 || bilirubin < 0) {
       setResults({ error: 'נתונים לא תקינים' });
       return;
     }
 
-    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
-    const exchangeDataSet = hasRiskFactors ? exchangeData.withRisk : exchangeData.noRisk;
+    let photoThreshold: number | null = null;
+    let exchangeThreshold: number | null = null;
 
-    const photoThreshold = getThreshold(photoData, gestAge, hours);
-    const exchangeThreshold = getThreshold(exchangeDataSet, gestAge, hours);
+    if (careSetting === 'Nursery') {
+      const sparse = hasRiskFactors ? nurseryPhototherapyWithRisk : nurseryPhototherapyNoRisk;
+      photoThreshold = getNurseryThreshold(sparse, gestAge, hours);
+      exchangeThreshold = null; // אין בתינוקיה
+    } else {
+      const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
+      const exchangeDataSet = hasRiskFactors ? exchangeData.withRisk : exchangeData.noRisk;
+      photoThreshold = getNICUThreshold(photoData, gestAge, hours);
+      exchangeThreshold = getNICUThreshold(exchangeDataSet, gestAge, hours);
+    }
 
     let recommendation = '';
-    let urgency = 'normal';
+    let urgency: 'normal' | 'moderate' | 'critical' = 'normal';
 
-    if (exchangeThreshold && bilirubin >= exchangeThreshold) {
+    if (exchangeThreshold !== null && bilirubin >= exchangeThreshold) {
       recommendation = 'נדרש החלפת דם מיידית!';
       urgency = 'critical';
-    } else if (photoThreshold && bilirubin >= photoThreshold) {
+    } else if (photoThreshold !== null && bilirubin >= photoThreshold) {
       recommendation = 'נדרש טיפול באור (פוטותרפיה)';
       urgency = 'moderate';
     } else {
@@ -135,7 +207,7 @@ const BilirubinCalculator = () => {
     }
 
     setResults({
-      photoThreshold,
+      photoThreshold: photoThreshold ?? NaN,
       exchangeThreshold,
       recommendation,
       urgency,
@@ -145,7 +217,7 @@ const BilirubinCalculator = () => {
 
   useEffect(() => {
     calculateResults();
-  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel]);
+  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel, careSetting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4" dir="rtl">
@@ -160,12 +232,30 @@ const BilirubinCalculator = () => {
       }} />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
+          {/* Switch בין פגיה לתינוקיה */}
+          <div className="absolute left-0 top-0">
+            <button
+              onClick={() => setCareSetting(prev => (prev === 'NICU' ? 'Nursery' : 'NICU'))}
+              className="flex items-center gap-2 px-3 py-2 bg-white/80 backdrop-blur rounded-lg shadow hover:bg-white transition"
+              aria-label="החלף בין פגיה לתינוקיה"
+              title="החלף בין פגיה לתינוקיה"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {careSetting === 'NICU' ? 'פגיה' : 'תינוקיה'}
+              </span>
+            </button>
+          </div>
           <div className="flex items-center justify-center gap-3 mb-4">
             <Calculator className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-800">מחשבון רפי בילירובין</h1>
+            <h1 className="text-3xl font-bold text-gray-800">מחשבון צהבת ילודים</h1>
           </div>
-          <p className="text-gray-600">טיפול באור והחלפת דם לתינוקות 35-40 שבועות</p>
+          <p className="text-gray-600">
+            {careSetting === 'NICU'
+              ? 'טיפול באור והחלפת דם (פרוטוקול פגיה) – 35–40 שבועות'
+              : 'טיפול באור (תינוקיה, ללא החלפת דם) – 35–40 שבועות'}
+          </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -209,17 +299,14 @@ const BilirubinCalculator = () => {
                 </label>
                 <input
                   type="number"
-                  min="1"
+                  min={careSetting === 'Nursery' ? 0 : 1}
                   max="336"
                   value={hoursOfLife}
                   onChange={(e) => setHoursOfLife(e.target.value)}
-                  placeholder="1-336 שעות"
+                  placeholder={careSetting === 'Nursery' ? '0-336 שעות' : '1-336 שעות'}
                   className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-                  style={{
-                    MozAppearance: 'textfield'
-                  }}
+                  style={{ MozAppearance: 'textfield' }}
                   onWheel={(e) => (e.target as HTMLInputElement).blur()}
-
                 />
               </div>
 
@@ -235,10 +322,8 @@ const BilirubinCalculator = () => {
                   onChange={(e) => setBilirubinLevel(e.target.value)}
                   placeholder="0.0"
                   className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-                  style={{
-                    MozAppearance: 'textfield'
-                  }}
-                  onWheel={(e) => e.target.blur()}
+                  style={{ MozAppearance: 'textfield' }}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 />
               </div>
 
@@ -252,11 +337,14 @@ const BilirubinCalculator = () => {
                   />
                   <div>
                     <span className="text-sm font-medium text-gray-700">
-                      קיימים גורמי סיכון לנוירוטוקסיות
+                      {careSetting === 'Nursery'
+                        ? 'קיימים גורמי סיכון לצהבת'
+                        : 'קיימים גורמי סיכון לנוירוטוקסיות'}
                     </span>
                     <p className="text-xs text-gray-600 mt-1">
-                      גיל הריון &lt;38 שבועות, אלבומין &lt;3.0 g/dL, מחלה המוליטית איזואימונית, 
-                      חסר G6PD, ספסיס, או חוסר יציבות קלינית
+                      {careSetting === 'Nursery'
+                        ? 'אנמיה המוליטית על רקע אי התאמת סוג דם, חוסר G6PD, ספסיס, אספיקציה, חמצת, היפואלבומינמיה < 3מ"ג/דצ"ל, סכרת הריונית, צפלהמטומה או המטומה נרחבת.'
+                        : 'גיל הריון <38 שבועות, אלבומין < 3.0 g/dL, מחלה המוליטית איזואימונית, חסר G6PD, ספסיס, או חוסר יציבות קלינית'}
                     </p>
                   </div>
                 </label>
@@ -308,29 +396,38 @@ const BilirubinCalculator = () => {
                     <h3 className="font-semibold text-blue-800 mb-2">רף לטיפול באור</h3>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-blue-600">
-                        {results.photoThreshold?.toFixed(1)} mg/dL
+                        {Number.isFinite(results.photoThreshold) ? results.photoThreshold.toFixed(1) : '—'} mg/dL
                       </span>
                       <span className={`text-sm ${
-                        results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                        Number.isFinite(results.photoThreshold) && results.bilirubinLevel >= results.photoThreshold
+                          ? 'text-red-600 font-semibold' : 'text-gray-600'
                       }`}>
-                        {results.bilirubinLevel >= results.photoThreshold ? 'מעל הרף' : 'מתחת לרף'}
+                        {Number.isFinite(results.photoThreshold) && results.bilirubinLevel >= results.photoThreshold ? 'מעל הרף' : 'מתחת לרף'}
                       </span>
                     </div>
                   </div>
 
+                  {careSetting === 'NICU' && (
                   <div className="bg-red-50 p-4 rounded-lg">
                     <h3 className="font-semibold text-red-800 mb-2">רף להחלפת דם</h3>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-red-600">
-                        {results.exchangeThreshold?.toFixed(1)} mg/dL
+                        {(results as BilirubinResult).exchangeThreshold !== null
+                          ? (results as BilirubinResult).exchangeThreshold!.toFixed(1)
+                          : '—'} mg/dL
                       </span>
                       <span className={`text-sm ${
-                        results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                        (results as BilirubinResult).exchangeThreshold !== null &&
+                        results.bilirubinLevel >= (results as BilirubinResult).exchangeThreshold!
+                          ? 'text-red-600 font-semibold' : 'text-gray-600'
                       }`}>
-                        {results.bilirubinLevel >= results.exchangeThreshold ? 'מעל הרף' : 'מתחת לרף'}
+                        {(results as BilirubinResult).exchangeThreshold !== null &&
+                        results.bilirubinLevel >= (results as BilirubinResult).exchangeThreshold!
+                          ? 'מעל הרף' : 'מתחת לרף'}
                       </span>
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Current Bilirubin */}
@@ -375,22 +472,33 @@ const BilirubinCalculator = () => {
           <div className="flex items-start gap-3">
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="text-sm text-gray-600">
-              <p className="font-semibold mb-2">הערות חשובות:</p>
-              <ul className="space-y-1">
-                <li>• מבוסס על ההנחיות של האקדמיה האמריקאית לרפואת ילדים 2022</li>
-                <li>• מתאים לתינוקות בגילאי הריון 35-40 שבועות</li>
-                <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
-                <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
-                <li className="mt-3 pt-2 border-t border-gray-200">
-                  <strong>מקור:</strong> Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., ... & Subcommittee on Hyperbilirubinemia. (2022). Clinical practice guideline revision: Management of hyperbilirubinemia in the newborn infant 35 or more weeks of gestation. <em>Pediatrics</em>, 150(3), e2022058859. 
-                  <a href="http://publications.aap.org/pediatrics/article-pdf/150/3/e2022058859/1375979/peds_2022058859.pdf" 
-                     target="_blank" 
-                     rel="noopener noreferrer" 
-                     className="text-blue-600 hover:text-blue-800 underline mr-1">
-                    קישור למאמר המקורי
-                  </a>
-                </li>
-              </ul>
+              {careSetting === 'Nursery' ? (
+                <>
+                  <p className="font-semibold mb-2">הערות חשובות:</p>
+                  <p>מבוסס על מחשבון בילירובין של תינוקיית בילינסון</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold mb-2">הערות חשובות:</p>
+                  <ul className="space-y-1">
+                    <li>• מבוסס על ההנחיות של האקדמיה האמריקאית לרפואת ילדים 2022</li>
+                    <li>• מתאים לתינוקות בגילאי הריון 35-40 שבועות</li>
+                    <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
+                    <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
+                    <li className="mt-3 pt-2 border-t border-gray-200">
+                      <strong>מקור:</strong> Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., ... &amp; Subcommittee on Hyperbilirubinemia. (2022). Clinical practice guideline revision: Management of hyperbilirubinemia in the newborn infant 35 or more weeks of gestation. <em>Pediatrics</em>, 150(3), e2022058859.
+                      <a
+                        href="http://publications.aap.org/pediatrics/article-pdf/150/3/e2022058859/1375979/peds_2022058859.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline mr-1"
+                      >
+                        קישור למאמר המקורי
+                      </a>
+                    </li>
+                  </ul>
+                </>
+              )}
             </div>
           </div>
         </div>
