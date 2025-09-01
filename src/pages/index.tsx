@@ -67,27 +67,53 @@ const BilirubinCalculator = () => {
   };
 
   const generateCopyText = () => {
-    if (!gestationalAge || !hoursOfLife) return '';
-    const gestAge = parseInt(gestationalAge);
-    const hours = parseInt(hoursOfLife);
-    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
-    // פוטו עם גורמי סיכון: עבור שבועות 39–40 להשתמש בדאטה של שבוע 38
-    const mappedGestAgeForPhoto = hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
+  if (!gestationalAge || !hoursOfLife) return '';
 
-    const prefix = hasRiskFactors ? 'עם ג"ס - ' : 'בלי ג"ס - ';
-    const thresholds: string[] = [];
+  const gestAge = parseInt(gestationalAge);
+  const hours = parseInt(hoursOfLife);
+  const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
 
-    for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
-      if (currentHour > 336) break;
-      const threshold = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
-      if (threshold) {
-        const boldHour = toBoldDigits(currentHour);
-        thresholds.push(`${boldHour}←${threshold.toFixed(1)}`);
-      }
+  // פוטו עם גורמי סיכון: עבור שבועות 39–40 להשתמש בדאטה של שבוע 38
+  const mappedGestAgeForPhoto =
+    hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
+
+  const prefix = `גבולות אור ${hasRiskFactors ? 'עם ג"ס' : 'בלי ג"ס'} -  `;
+  const parts: string[] = [];
+  let isFirst = true;
+
+  for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
+    if (currentHour > 336) break; // מקסימום שעות בטבלה
+    const threshold = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
+    if (!threshold) continue;
+
+    const hourStr = toBoldUnderlinedDigits(currentHour);
+
+    if (isFirst) {
+      parts.push(`בשעה ${hourStr}←גבול בילי ${threshold.toFixed(1)}`);
+      isFirst = false;
+    } else {
+      parts.push(`${hourStr}←${threshold.toFixed(1)}`);
     }
+  }
 
-    return prefix + thresholds.join(', ');
-  };
+  return prefix + parts.join(' | ');
+};
+
+
+  // מדגיש ספרות בבולד וגם מוסיף קו תחתון לכל ספרה (באמצעות Combining Low Line)
+const toBoldUnderlinedDigits = (num: number): string => {
+  const underline = '\u0332';
+  const boldDigits = ['𝟎', '𝟏', '𝟐', '𝟑', '𝟒', '𝟓', '𝟔', '𝟕', '𝟖', '𝟗'];
+  return num
+    .toString()
+    .split('')
+    .map((ch) => {
+      const d = parseInt(ch, 10);
+      return isNaN(d) ? ch : boldDigits[d] + underline;
+    })
+    .join('');
+};
+
 
   // פתיחת דיאלוג לפי סוג (פוטו/החלפת דם) והאם יש גורמי סיכון
   const openInfo = (kind: 'photo' | 'exchange') => {
