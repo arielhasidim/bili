@@ -9,7 +9,6 @@ interface BilirubinResult {
   bilirubinLevel: number;
 }
 
-
 const BilirubinCalculator = () => {
   const [gestationalAge, setGestationalAge] = useState('');
   const [hoursOfLife, setHoursOfLife] = useState('');
@@ -17,6 +16,8 @@ const BilirubinCalculator = () => {
   const [bilirubinLevel, setBilirubinLevel] = useState('');
   const [results, setResults] = useState<BilirubinResult | { error: string } | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  // דיאלוג תמונה
+  const [dialog, setDialog] = useState<{ src: string; title: string } | null>(null);
 
   // נתוני הטבלאות מהמסמך
   const phototherapyData = {
@@ -65,30 +66,45 @@ const BilirubinCalculator = () => {
     }).join('');
   };
 
-
   const generateCopyText = () => {
     if (!gestationalAge || !hoursOfLife) return '';
-    
     const gestAge = parseInt(gestationalAge);
     const hours = parseInt(hoursOfLife);
     const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
     // פוטו עם גורמי סיכון: עבור שבועות 39–40 להשתמש בדאטה של שבוע 38
     const mappedGestAgeForPhoto = hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
-     
+
     const prefix = hasRiskFactors ? 'עם ג"ס - ' : 'בלי ג"ס - ';
-    const thresholds = [];
-    
+    const thresholds: string[] = [];
+
     for (let currentHour = hours; currentHour <= hours + 72; currentHour += 4) {
-      if (currentHour > 336) break; // מקסימום שעות בטבלה
+      if (currentHour > 336) break;
       const threshold = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
       if (threshold) {
         const boldHour = toBoldDigits(currentHour);
         thresholds.push(`${boldHour}←${threshold.toFixed(1)}`);
       }
     }
-    
+
     return prefix + thresholds.join(', ');
   };
+
+  // פתיחת דיאלוג לפי סוג (פוטו/החלפת דם) והאם יש גורמי סיכון
+  const openInfo = (kind: 'photo' | 'exchange') => {
+    const imgIndex = kind === 'photo' ? (hasRiskFactors ? 2 : 1) : (hasRiskFactors ? 4 : 3);
+    setDialog({
+      src: `./table ${imgIndex}.png`,
+      title: kind === 'photo' ? 'סף לטיפול באור' : 'סף להחלפת דם',
+    });
+  };
+
+  // סגירה עם ESC
+  useEffect(() => {
+    if (!dialog) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDialog(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dialog]);
 
   const copyToClipboard = async () => {
     const text = generateCopyText();
@@ -119,16 +135,16 @@ const BilirubinCalculator = () => {
     const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
     const exchangeDataSet = hasRiskFactors ? exchangeData.withRisk : exchangeData.noRisk;
 
-   // פוטו עם גורמי סיכון: שבועות 39–40 נמשכים משבוע 38
-   const gestAgeForPhoto = hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
-   // החלפת דם (עם/בלי גורמי סיכון): שבועות 39–40 נמשכים משבוע 38
-   const gestAgeForExchange = (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
+    // פוטו עם גורמי סיכון: שבועות 39–40 נמשכים משבוע 38
+    const gestAgeForPhoto = hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
+    // החלפת דם (עם/בלי גורמי סיכון): שבועות 39–40 נמשכים משבוע 38
+    const gestAgeForExchange = (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
 
-   const photoThreshold = getThreshold(photoData, gestAgeForPhoto, hours);
-   const exchangeThreshold = getThreshold(exchangeDataSet, gestAgeForExchange, hours);
+    const photoThreshold = getThreshold(photoData, gestAgeForPhoto, hours);
+    const exchangeThreshold = getThreshold(exchangeDataSet, gestAgeForExchange, hours);
 
     let recommendation = '';
-    let urgency = 'normal';
+    let urgency: 'normal' | 'moderate' | 'critical' = 'normal';
 
     if (exchangeThreshold && bilirubin >= exchangeThreshold) {
       recommendation = 'נדרש החלפת דם מיידית!';
@@ -156,15 +172,17 @@ const BilirubinCalculator = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4" dir="rtl">
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           input[type=number]::-webkit-outer-spin-button,
           input[type=number]::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
           }
-        `
-      }} />
+        `,
+        }}
+      />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -185,9 +203,7 @@ const BilirubinCalculator = () => {
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  גיל הריון (שבועות)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">גיל הריון (שבועות)</label>
                 <select
                   value={gestationalAge}
                   onChange={(e) => setGestationalAge(e.target.value)}
@@ -197,7 +213,7 @@ const BilirubinCalculator = () => {
                     backgroundPosition: 'left 0.75rem center',
                     backgroundRepeat: 'no-repeat',
                     backgroundSize: '1.5em 1.5em',
-                    paddingLeft: '2.5rem'
+                    paddingLeft: '2.5rem',
                   }}
                 >
                   <option value="">בחר גיל הריון</option>
@@ -211,9 +227,7 @@ const BilirubinCalculator = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  גיל בשעות מהלידה
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">גיל בשעות מהלידה</label>
                 <input
                   type="number"
                   min="1"
@@ -222,18 +236,13 @@ const BilirubinCalculator = () => {
                   onChange={(e) => setHoursOfLife(e.target.value)}
                   placeholder="1-336 שעות"
                   className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-                  style={{
-                    MozAppearance: 'textfield'
-                  }}
+                  style={{ MozAppearance: 'textfield' }}
                   onWheel={(e) => (e.target as HTMLInputElement).blur()}
-
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  רמת בילירובין (mg/dL)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">רמת בילירובין (mg/dL)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -242,10 +251,8 @@ const BilirubinCalculator = () => {
                   onChange={(e) => setBilirubinLevel(e.target.value)}
                   placeholder="0.0"
                   className="w-full p-3 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-                  style={{
-                    MozAppearance: 'textfield'
-                  }}
-                  onWheel={(e) => e.target.blur()}
+                  style={{ MozAppearance: 'textfield' }}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 />
               </div>
 
@@ -258,9 +265,7 @@ const BilirubinCalculator = () => {
                     className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <div>
-                    <span className="text-sm font-medium text-gray-700">
-                      קיום גורמי סיכון נוירוטוקסיים
-                    </span>
+                    <span className="text-sm font-medium text-gray-700">קיום גורמי סיכון נוירוטוקסיים</span>
                     <p className="text-xs text-gray-600 mt-1">
                       אלבומין &lt;3.0 g/dL, המוליזה (איזואימונית או אחרת), חסר G6PD, ספסיס, או אי יציבות קלינית*
                     </p>
@@ -285,11 +290,15 @@ const BilirubinCalculator = () => {
             ) : results ? (
               <div className="space-y-6">
                 {/* Current Status */}
-                <div className={`p-4 rounded-lg border-2 ${
-                  results.urgency === 'critical' ? 'bg-red-50 border-red-200' :
-                  results.urgency === 'moderate' ? 'bg-yellow-50 border-yellow-200' :
-                  'bg-green-50 border-green-200'
-                }`}>
+                <div
+                  className={`p-4 rounded-lg border-2 ${
+                    results.urgency === 'critical'
+                      ? 'bg-red-50 border-red-200'
+                      : results.urgency === 'moderate'
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : 'bg-green-50 border-green-200'
+                  }`}
+                >
                   <div className="flex items-center gap-3 mb-2">
                     {results.urgency === 'critical' ? (
                       <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -298,11 +307,15 @@ const BilirubinCalculator = () => {
                     ) : (
                       <Info className="w-6 h-6 text-green-600" />
                     )}
-                    <span className={`text-lg font-semibold ${
-                      results.urgency === 'critical' ? 'text-red-800' :
-                      results.urgency === 'moderate' ? 'text-yellow-800' :
-                      'text-green-800'
-                    }`}>
+                    <span
+                      className={`text-lg font-semibold ${
+                        results.urgency === 'critical'
+                          ? 'text-red-800'
+                          : results.urgency === 'moderate'
+                          ? 'text-yellow-800'
+                          : 'text-green-800'
+                      }`}
+                    >
                       {results.recommendation}
                     </span>
                   </div>
@@ -311,28 +324,52 @@ const BilirubinCalculator = () => {
                 {/* Thresholds */}
                 <div className="grid gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-blue-800 mb-2">סף לטיפול באור</h3>
+                    <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                      סף לטיפול באור
+                      <button
+                        type="button"
+                        onClick={() => openInfo('photo')}
+                        aria-label="מידע נוסף - סף לטיפול באור"
+                        className="p-1 rounded hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                    </h3>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-blue-600">
                         {results.photoThreshold?.toFixed(1)} mg/dL
                       </span>
-                      <span className={`text-sm ${
-                        results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
-                      }`}>
+                      <span
+                        className={`text-sm ${
+                          results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                        }`}
+                      >
                         {results.bilirubinLevel >= results.photoThreshold ? 'מעל הסף' : 'מתחת לסף'}
                       </span>
                     </div>
                   </div>
 
                   <div className="bg-red-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-red-800 mb-2">סף להחלפת דם</h3>
+                    <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                      סף להחלפת דם
+                      <button
+                        type="button"
+                        onClick={() => openInfo('exchange')}
+                        aria-label="מידע נוסף - סף להחלפת דם"
+                        className="p-1 rounded hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                    </h3>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-red-600">
                         {results.exchangeThreshold?.toFixed(1)} mg/dL
                       </span>
-                      <span className={`text-sm ${
-                        results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
-                      }`}>
+                      <span
+                        className={`text-sm ${
+                          results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                        }`}
+                      >
                         {results.bilirubinLevel >= results.exchangeThreshold ? 'מעל הסף' : 'מתחת לסף'}
                       </span>
                     </div>
@@ -342,9 +379,7 @@ const BilirubinCalculator = () => {
                 {/* Current Bilirubin */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-gray-800 mb-2">רמת בילירובין נוכחית</h3>
-                  <span className="text-3xl font-bold text-gray-700">
-                    {results.bilirubinLevel.toFixed(1)} mg/dL
-                  </span>
+                  <span className="text-3xl font-bold text-gray-700">{results.bilirubinLevel.toFixed(1)} mg/dL</span>
                 </div>
 
                 {/* Copy Button */}
@@ -401,6 +436,36 @@ const BilirubinCalculator = () => {
             </div>
           </div>
         </div>
+
+        {/* דיאלוג תמונה צפה */}
+        {dialog && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setDialog(null)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-xl max-w-3xl w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <span className="font-semibold">{dialog.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setDialog(null)}
+                  aria-label="סגירת דיאלוג"
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-4">
+                <img src={dialog.src} alt={dialog.title} className="w-full h-auto rounded" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
