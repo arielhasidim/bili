@@ -610,14 +610,8 @@ const BilirubinCalculator = () => {
             <div className="text-sm text-gray-600">
               <p className="font-semibold mb-2">הערות חשובות:</p>
               <ul className="space-y-1">
-                <li>
-                  • {guidelineIsNICE
-                    ? 'מבוסס על הנחיות NICE מספר CG98 שעודכן בשנה 2023'
-                    : 'מבוסס על ההנחיות של האקדמיה האמריקאית לרפואת ילדים 2022'}
-                </li>
                 <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
                 <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
-                <li>* שבוע לידה &lt; 38 נחשב ג"ס נוירוטוקסי, אך הוא נכלל בהגדרת שבוע הלידה </li>
                 <li className="mt-3 pt-2 border-t border-gray-200 text-left">
                 {guidelineIsNICE
                     ? 'Jaundice in newborn babies under 28 days | Guidance | NICE. (2010, May 19, updated: 31 October 2023). NICE.'
