@@ -605,14 +605,14 @@ const BilirubinCalculator = () => {
 
         {/* Footer Info */}
         <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-gray-600">
+           <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-gray-600 min-w-0 break-words">
               <p className="font-semibold mb-2">הערות חשובות:</p>
               <ul className="space-y-1">
                 <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
                 <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
-                <li className="mt-3 pt-2 border-t border-gray-200 text-left">
+                <li className="mt-3 pt-2 border-t border-gray-200 text-left break-words">
                 {guidelineIsNICE
                     ? 'Jaundice in newborn babies under 28 days | Guidance | NICE. (2010, May 19, updated: 31 October 2023). NICE.'
                     : 'Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., Grout, R. W., Bundy, D. G., Stark, A. R., Bogen, D. L., Holmes, A. V., Feldman-Winter, L. B., Bhutani, V. K., Brown, S. R., Maradiaga Panayotti, G. M., Okechukwu, K., Rappo, P. D., & Russell, T. L. (2022). Clinical Practice Guideline Revision: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation. Pediatrics, 150(3), e2022058859. https://doi.org/10.1542/peds.2022-058859'}
@@ -629,6 +629,9 @@ const BilirubinCalculator = () => {
             </div>
           </div>
         </div>
+
+        {/* Copyright */}
+        <p className="mt-6 text-center text-gray-400">Ariel Hasidim 2025 ©</p>
 
         {/* דיאלוג תמונה צפה */}
         {dialog && (
