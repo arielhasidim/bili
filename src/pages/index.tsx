@@ -102,12 +102,18 @@ const BilirubinCalculator = () => {
     return data[gestAge][index];
   };
 
-  const toBoldDigits = (number: number): string => {
+  // מדגיש ספרות בבולד וגם מוסיף קו תחתון לכל ספרה (באמצעות Combining Low Line)
+  const toBoldUnderlinedDigits = (num: number): string => {
+    const underline = '\u0332';
     const boldDigits = ['𝟎', '𝟏', '𝟐', '𝟑', '𝟒', '𝟓', '𝟔', '𝟕', '𝟖', '𝟗'];
-    return number.toString().split('').map((char) => {
-      const digit = parseInt(char);
-      return isNaN(digit) ? char : boldDigits[digit];
-    }).join('');
+    return num
+      .toString()
+      .split('')
+      .map((ch) => {
+        const d = parseInt(ch, 10);
+        return isNaN(d) ? ch : boldDigits[d] + underline;
+      })
+      .join('');
   };
 
   const generateCopyText = () => {
@@ -142,22 +148,6 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
 
     return prefix + parts.join(' | ');
   };
-
-
-  // מדגיש ספרות בבולד וגם מוסיף קו תחתון לכל ספרה (באמצעות Combining Low Line)
-  const toBoldUnderlinedDigits = (num: number): string => {
-    const underline = '\u0332';
-    const boldDigits = ['𝟎', '𝟏', '𝟐', '𝟑', '𝟒', '𝟓', '𝟔', '𝟕', '𝟖', '𝟗'];
-    return num
-      .toString()
-      .split('')
-      .map((ch) => {
-        const d = parseInt(ch, 10);
-        return isNaN(d) ? ch : boldDigits[d] + underline;
-      })
-      .join('');
-  };
-
 
   // פתיחת דיאלוג לפי סוג (פוטו/החלפת דם) והאם יש גורמי סיכון
   const openInfo = (kind: 'photo' | 'exchange') => {
