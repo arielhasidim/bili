@@ -133,62 +133,53 @@ const BilirubinCalculator = () => {
   };
 
   const generateCopyText = () => {
-  if (!gestationalAge || !hoursOfLife) return '';
+    if (!gestationalAge || !hoursOfLife) return '';
 
-  const gestAge = parseInt(gestationalAge);
-  const hours = parseInt(hoursOfLife);
-  const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
+    const gestAge = parseInt(gestationalAge);
+    const hours = parseInt(hoursOfLife);
+    const photoData = hasRiskFactors ? phototherapyData.withRisk : phototherapyData.noRisk;
 
-  // פוטו עם ג"ס: שבועות 39–40 להשתמש בדאטה של שבוע 38
-  const mappedGestAgeForPhoto =
-    hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
+    // פוטו עם ג"ס: שבועות 39–40 להשתמש בדאטה של שבוע 38
+    const mappedGestAgeForPhoto =
+      hasRiskFactors && (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
 
-  const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskFactors ? 'עם ג"ס' : 'בלי ג"ס')} -  `;
+    const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskFactors ? 'עם ג"ס' : 'בלי ג"ס')} -  `;
 
-  // פלאטו ידני אם הוגדרו גבולות (הנמוך מביניהם קובע את הפלאטו)
-  const capPhoto = maxPhotoCap ? parseFloat(maxPhotoCap) : NaN;
-  const capExchange = maxExchangeCap ? parseFloat(maxExchangeCap) : NaN;
-  const caps: number[] = [];
-  if (Number.isFinite(capPhoto) && capPhoto > 0) caps.push(capPhoto);
-  if (Number.isFinite(capExchange) && capExchange > 0) caps.push(capExchange);
-  const manualCap = caps.length ? Math.min(...caps) : NaN;
+    // פלאטו ידני אם הוגדרו גבולות (הנמוך מביניהם קובע את הפלאטו)
+    const capPhoto = maxPhotoCap ? parseFloat(maxPhotoCap) : NaN;
+    const capExchange = maxExchangeCap ? parseFloat(maxExchangeCap) : NaN;
+    const caps: number[] = [];
+    if (Number.isFinite(capPhoto) && capPhoto > 0) caps.push(capPhoto);
+    if (Number.isFinite(capExchange) && capExchange > 0) caps.push(capExchange);
+    const manualCap = caps.length ? Math.min(...caps) : NaN;
 
-  // פלאטו ספציפי לפי הכללים
-  const special = getPhototherapyPlateauRule(gestAge, hasRiskFactors);
+    // פלאטו ספציפי לפי הכללים
+    const special = getPhototherapyPlateauRule(gestAge, hasRiskFactors);
 
-  const parts: string[] = [];
-  let isFirst = true;
+    const parts: string[] = [];
 
-  for (let currentHour = hours; currentHour <= hours + 72 && currentHour <= 336; currentHour += 4) {
-    const base = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
-    if (base == null) continue;
+    for (let currentHour = hours; currentHour <= hours + 72 && currentHour <= 336; currentHour += 4) {
+      const base = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
+      if (base == null) continue;
 
-    // 1) פלאטו ידני קודם (ברגע שהדאטה מגיעה לערך ה-cap)
-    if (Number.isFinite(manualCap) && base >= (manualCap as number)) {
-      const hourStr = toBoldUnderlinedDigits(currentHour);
-      parts.push(`משעה ${hourStr} והלאה גבול ${(manualCap as number).toFixed(1)}.`);
-      break;
+      // 1) פלאטו ידני קודם (ברגע שהדאטה מגיעה לערך ה-cap)
+      if (Number.isFinite(manualCap) && base >= (manualCap as number)) {
+        parts.push(`משעה ${currentHour} והלאה גבול ${(manualCap as number).toFixed(1)}.`);
+        break;
+      }
+
+      // 2) פלאטו כללי — מהרגע שהגענו/עברנו את שעת ההתחלה
+      if (special && currentHour >= special.start) {
+        parts.push(`משעה ${currentHour} והלאה גבול ${special.value.toFixed(1)}.`);
+        break;
+      }
+
+      // ללא פלאטו בשעה זו — פורמט חדש
+      parts.push(`בגיל ${currentHour} שעות -> גבול ${base.toFixed(1)}`);
     }
 
-    // 2) פלאטו כללי — מהרגע שהגענו/עברנו את שעת ההתחלה
-    if (special && currentHour >= special.start) {
-      const hourStr = toBoldUnderlinedDigits(currentHour); // מציג את השעה הראשונה ברצף ההדפסה שבה הפלאטו בתוקף
-      parts.push(`משעה ${hourStr} והלאה גבול ${special.value.toFixed(1)}.`);
-      break;
-    }
-
-    // ללא פלאטו בשעה זו — מוסיפים נקודה רגילה
-    const hourStr = toBoldUnderlinedDigits(currentHour);
-    if (isFirst) {
-      parts.push(`בשעה ${hourStr}←גבול בילי ${base.toFixed(1)}`);
-      isFirst = false;
-    } else {
-      parts.push(`${hourStr}←${base.toFixed(1)}`);
-    }
-  }
-
-  return prefix + parts.join(' | ');
-};
+    return prefix + parts.join(' | ');
+  };
 
   // פתיחת דיאלוג לפי סוג (פוטו/החלפת דם) והאם יש גורמי סיכון
   const openInfo = (kind: 'photo' | 'exchange') => {
@@ -456,7 +447,7 @@ const BilirubinCalculator = () => {
           </div>
 
           {/* Results Panel */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex flex-col bg-white rounded-xl shadow-lg p-6 min-h-[360px]">
             <div className="flex items-center gap-2 mb-6">
               <Lightbulb className="w-6 h-6 text-green-600" />
               <h2 className="text-xl font-semibold text-gray-800">תוצאות והמלצות</h2>
@@ -595,7 +586,7 @@ const BilirubinCalculator = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 text-center py-8">
                 <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>הזן את הנתונים לקבלת המלצות טיפול</p>
               </div>
