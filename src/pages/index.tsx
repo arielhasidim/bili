@@ -23,9 +23,9 @@ const BilirubinCalculator = () => {
 
   // הגדרות מתקדמות
   const [advOpen, setAdvOpen] = useState(false);
-  const [maxPhotoCap, setMaxPhotoCap] = useState<string>('');
-  const [maxExchangeCap, setMaxExchangeCap] = useState<string>('');
-  const [saveAdvanced, setSaveAdvanced] = useState<boolean>(false);
+  const [maxPhotoCap, setMaxPhotoCap] = useState<string>('18');
+  const [maxExchangeCap, setMaxExchangeCap] = useState<string>('25');
+  const [saveAdvanced, setSaveAdvanced] = useState<boolean>(true);
 
   // טעינת הגדרות מתקדמות מה-localStorage
   useEffect(() => {
@@ -603,6 +603,7 @@ const BilirubinCalculator = () => {
               <ul className="space-y-1">
                 <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
                 <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
+                <li className="font-bold">• בערכים קרובים ל-5מ"ג/דצ"ל בצעירים מגיל 6 שעות יש להתייעץ עם בכיר</li>
                 {Boolean(gestationalAge) && (
                   <li className="mt-3 pt-2 border-t border-gray-200 text-left break-words">
                     {guidelineIsNICE
