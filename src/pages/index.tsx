@@ -179,7 +179,8 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
   };
 
   const calculateResults = () => {
-    if (!gestationalAge || !hoursOfLife || !bilirubinLevel) {
+    // מציגים תוצאות גם בלי רמת בילירובין, כל עוד יש שבוע לידה + גיל בשעות
+    if (!gestationalAge || !hoursOfLife) {
       setResults(null);
       return;
     }
@@ -187,8 +188,9 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
     const gestAge = parseInt(gestationalAge);
     const hours = parseInt(hoursOfLife);
     const bilirubin = parseFloat(bilirubinLevel);
+    const hasBili = Number.isFinite(bilirubin);
 
-    if (gestAge < 34 || gestAge > 40 || hours < 1 || hours > 336 || bilirubin < 0) {
+    if (gestAge < 34 || gestAge > 40 || hours < 1 || hours > 336 || (hasBili && bilirubin < 0)) {
       setResults({ error: 'נתונים לא תקינים' });
       return;
     }
@@ -219,14 +221,19 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
     let recommendation = '';
     let urgency: 'normal' | 'moderate' | 'critical' = 'normal';
 
-    if (exchangeThreshold && bilirubin >= exchangeThreshold) {
-      recommendation = 'נדרש החלפת דם מיידית!';
-      urgency = 'critical';
-    } else if (photoThreshold && bilirubin >= photoThreshold) {
-      recommendation = 'נדרש טיפול באור (פוטותרפיה)';
-      urgency = 'moderate';
+    if (Number.isFinite(bilirubin)) {
+      if (exchangeThreshold && bilirubin >= exchangeThreshold) {
+        recommendation = 'נדרש החלפת דם מיידית!';
+        urgency = 'critical';
+      } else if (photoThreshold && bilirubin >= photoThreshold) {
+        recommendation = 'נדרש טיפול באור (פוטותרפיה)';
+        urgency = 'moderate';
+      } else {
+        recommendation = 'המשך מעקב לפי פרוטוקול';
+        urgency = 'normal';
+      }
     } else {
-      recommendation = 'המשך מעקב לפי פרוטוקול';
+      recommendation = 'הזן רמת בילירובין כדי לקבוע אם נדרש טיפול';
       urgency = 'normal';
     }
 
@@ -235,7 +242,7 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
       exchangeThreshold,
       recommendation,
       urgency,
-      bilirubinLevel: bilirubin
+      bilirubinLevel: Number.isFinite(bilirubin) ? bilirubin : NaN
     });
   };
 
@@ -473,10 +480,14 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
                       </span>
                       <span
                         className={`text-sm ${
-                          results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                          Number.isFinite(results.bilirubinLevel)
+                            ? (results.bilirubinLevel >= results.photoThreshold ? 'text-red-600 font-semibold' : 'text-gray-600')
+                            : 'text-gray-600'
                         }`}
                       >
-                        {results.bilirubinLevel >= results.photoThreshold ? 'מעל הסף' : 'מתחת לסף'}
+                        {Number.isFinite(results.bilirubinLevel)
+                          ? (results.bilirubinLevel >= results.photoThreshold ? 'מעל הסף' : 'מתחת לסף')
+                          : '—'}
                       </span>
                     </div>
                   </div>
@@ -499,20 +510,28 @@ const prefix = `גבולות אור ${gestAge === 34 ? 'שבוע 34' : (hasRiskF
                       </span>
                       <span
                         className={`text-sm ${
-                          results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600'
+                          Number.isFinite(results.bilirubinLevel)
+                            ? (results.bilirubinLevel >= results.exchangeThreshold ? 'text-red-600 font-semibold' : 'text-gray-600')
+                            : 'text-gray-600'
                         }`}
                       >
-                        {results.bilirubinLevel >= results.exchangeThreshold ? 'מעל הסף' : 'מתחת לסף'}
+                        {Number.isFinite(results.bilirubinLevel)
+                          ? (results.bilirubinLevel >= results.exchangeThreshold ? 'מעל הסף' : 'מתחת לסף')
+                          : '—'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Current Bilirubin */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-800 mb-2">רמת בילירובין נוכחית</h3>
-                  <span className="text-3xl font-bold text-gray-700">{results.bilirubinLevel.toFixed(1)} mg/dL</span>
-                </div>
+                {/* Current Bilirubin (shown only if value provided) */}
+                {Number.isFinite(results.bilirubinLevel) && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-800 mb-2">רמת בילירובין נוכחית</h3>
+                    <span className="text-3xl font-bold text-gray-700">
+                      {results.bilirubinLevel.toFixed(1)} mg/dL
+                    </span>
+                  </div>
+                )}
 
                 {/* Copy Button */}
                 <div className="pt-4 border-t border-gray-200">
