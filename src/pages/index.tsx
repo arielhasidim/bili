@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check } from 'lucide-react';
-
+import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check, ChevronDown } from 'lucide-react';
+ 
 interface BilirubinResult {
   photoThreshold: number;
   exchangeThreshold: number;
@@ -18,6 +18,39 @@ const BilirubinCalculator = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   // דיאלוג תמונה
   const [dialog, setDialog] = useState<{ src: string; title: string } | null>(null);
+
+  // הגדרות מתקדמות
+const [advOpen, setAdvOpen] = useState(false);
+const [maxPhotoCap, setMaxPhotoCap] = useState<string>('');
+const [maxExchangeCap, setMaxExchangeCap] = useState<string>('');
+const [saveAdvanced, setSaveAdvanced] = useState<boolean>(false);
+
+// טעינת הגדרות מתקדמות מה-localStorage
+useEffect(() => {
+  try {
+    const raw = localStorage.getItem('bilirubin_adv_settings');
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as { maxPhoto: number | null; maxExchange: number | null };
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.maxPhoto === 'number') setMaxPhotoCap(String(parsed.maxPhoto));
+      if (typeof parsed.maxExchange === 'number') setMaxExchangeCap(String(parsed.maxExchange));
+      setSaveAdvanced(true);
+      setAdvOpen(true); // אם יש הגדרות שמורות - פותחים את הסקשן בתחילת הטעינה
+    }
+  } catch {}
+}, []);
+
+// שמירת/מחיקת הגדרות מתקדמות ב-localStorage
+useEffect(() => {
+  if (!saveAdvanced) {
+    localStorage.removeItem('bilirubin_adv_settings');
+    return;
+  }
+  const maxPhoto = maxPhotoCap && Number.isFinite(parseFloat(maxPhotoCap)) ? parseFloat(maxPhotoCap) : null;
+  const maxExchange = maxExchangeCap && Number.isFinite(parseFloat(maxExchangeCap)) ? parseFloat(maxExchangeCap) : null;
+  localStorage.setItem('bilirubin_adv_settings', JSON.stringify({ maxPhoto, maxExchange }));
+}, [saveAdvanced, maxPhotoCap, maxExchangeCap]);
+
 
   // נתוני הטבלאות מהמסמך
   const phototherapyData = {
@@ -166,8 +199,20 @@ const toBoldUnderlinedDigits = (num: number): string => {
     // החלפת דם (עם/בלי גורמי סיכון): שבועות 39–40 נמשכים משבוע 38
     const gestAgeForExchange = (gestAge === 39 || gestAge === 40) ? 38 : gestAge;
 
-    const photoThreshold = getThreshold(photoData, gestAgeForPhoto, hours);
-    const exchangeThreshold = getThreshold(exchangeDataSet, gestAgeForExchange, hours);
+    // ספי בסיס מהדאטה
+    let photoThreshold = getThreshold(photoData, gestAgeForPhoto, hours);
+    let exchangeThreshold = getThreshold(exchangeDataSet, gestAgeForExchange, hours);
+
+    // החלת גבולות עליונים מהגדרות מתקדמות (override אם נמוך יותר מהדאטה)
+    const capPhoto = maxPhotoCap ? parseFloat(maxPhotoCap) : NaN;
+    const capExchange = maxExchangeCap ? parseFloat(maxExchangeCap) : NaN;
+    if (photoThreshold != null && Number.isFinite(capPhoto) && capPhoto > 0) {
+      photoThreshold = Math.min(photoThreshold, capPhoto);
+    }
+    if (exchangeThreshold != null && Number.isFinite(capExchange) && capExchange > 0) {
+      exchangeThreshold = Math.min(exchangeThreshold, capExchange);
+    }
+
 
     let recommendation = '';
     let urgency: 'normal' | 'moderate' | 'critical' = 'normal';
@@ -194,7 +239,7 @@ const toBoldUnderlinedDigits = (num: number): string => {
 
   useEffect(() => {
     calculateResults();
-  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel]);
+  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel, maxPhotoCap, maxExchangeCap]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4" dir="rtl">
@@ -298,6 +343,63 @@ const toBoldUnderlinedDigits = (num: number): string => {
                   </div>
                 </label>
               </div>
+              {/* הגדרות מתקדמות */}
+                <div className="bg-gray-50 rounded-lg border border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setAdvOpen(v => !v)}
+                    className="w-full text-right px-4 py-3 font-medium text-gray-800 hover:bg-gray-100 rounded-lg"
+                    aria-expanded={advOpen}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="flex items-center justify-between">
+                      <span>הגדרות מתקדמות</span>
+                      <ChevronDown
+                        className={`w-5 h-5 transition-transform ${advOpen ? 'rotate-180' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </button>
+                  {advOpen && (
+                    <div id="advanced-settings" className="px-4 pb-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-1">
+                           גבול לטיפול באור
+                          </label>
+                          <input
+                            type="number" step="0.1" min="0"
+                            value={maxPhotoCap}
+                            onChange={(e) => setMaxPhotoCap(e.target.value)}
+                            placeholder='למשל 18מ"ג/דצ"ל'
+                            className="w-full p-3 border-0 bg-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-1">
+                            גבול להחלפת דם
+                          </label>
+                          <input
+                            type="number" step="0.1" min="0"
+                            value={maxExchangeCap}
+                            onChange={(e) => setMaxExchangeCap(e.target.value)}
+                            placeholder='למשל 20מ"ג/דצ"ל'
+                            className="w-full p-3 border-0 bg-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 mt-3">
+                        <input
+                          type="checkbox"
+                          checked={saveAdvanced}
+                          onChange={(e) => setSaveAdvanced(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">זכור העדפות</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
             </div>
           </div>
 
