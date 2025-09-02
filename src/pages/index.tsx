@@ -158,7 +158,7 @@ const BilirubinCalculator = () => {
 
     const parts: string[] = [];
 
-    for (let currentHour = hours; currentHour <= hours + 72 && currentHour <= 336; currentHour += 4) {
+    for (let currentHour = hours; currentHour <= hours + 96 && currentHour <= 336; currentHour += 4) {
       const base = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
       if (base == null) continue;
 
