@@ -315,7 +315,7 @@ const BilirubinCalculator = () => {
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">גיל הריון (שבועות)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">שבוע לידה</label>
                 <select
                   value={gestationalAge}
                   onChange={(e) => setGestationalAge(e.target.value)}
@@ -328,7 +328,7 @@ const BilirubinCalculator = () => {
                     paddingLeft: '2.5rem',
                   }}
                 >
-                  <option value="">בחר גיל הריון</option>
+                  <option value="">בחר שבוע לידה</option>
                   <option value="34">34 שבועות</option>
                   <option value="35">35 שבועות</option>
                   <option value="36">36 שבועות</option>
@@ -603,19 +603,23 @@ const BilirubinCalculator = () => {
               <ul className="space-y-1">
                 <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
                 <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
-                <li className="mt-3 pt-2 border-t border-gray-200 text-left break-words">
-                {guidelineIsNICE
-                    ? 'Jaundice in newborn babies under 28 days | Guidance | NICE. (2010, May 19, updated: 31 October 2023). NICE.'
-                    : 'Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., Grout, R. W., Bundy, D. G., Stark, A. R., Bogen, D. L., Holmes, A. V., Feldman-Winter, L. B., Bhutani, V. K., Brown, S. R., Maradiaga Panayotti, G. M., Okechukwu, K., Rappo, P. D., & Russell, T. L. (2022). Clinical Practice Guideline Revision: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation. Pediatrics, 150(3), e2022058859. https://doi.org/10.1542/peds.2022-058859'}
-                  <a href={guidelineIsNICE
-                      ? "https://www.nice.org.uk/guidance/cg98"
-                      : "http://publications.aap.org/pediatrics/article-pdf/150/3/e2022058859/1375979/peds_2022058859.pdf"} 
-                     target="_blank" 
-                     rel="noopener noreferrer" 
-                     className="text-blue-600 hover:text-blue-800 underline mr-1">
-                     (Link)
-                  </a>
-                </li>
+                {Boolean(gestationalAge) && (
+                  <li className="mt-3 pt-2 border-t border-gray-200 text-left break-words">
+                    {guidelineIsNICE
+                      ? 'Jaundice in newborn babies under 28 days | Guidance | NICE. (2010, May 19, updated: 31 October 2023). NICE.'
+                      : 'Kemper, A. R., Newman, T. B., Slaughter, J. L., Maisels, M. J., Watchko, J. F., Downs, S. M., Grout, R. W., Bundy, D. G., Stark, A. R., Bogen, D. L., Holmes, A. V., Feldman-Winter, L. B., Bhutani, V. K., Brown, S. R., Maradiaga Panayotti, G. M., Okechukwu, K., Rappo, P. D., & Russell, T. L. (2022). Clinical Practice Guideline Revision: Management of Hyperbilirubinemia in the Newborn Infant 35 or More Weeks of Gestation. Pediatrics, 150(3), e2022058859. https://doi.org/10.1542/peds.2022-058859'}
+                    <a
+                      href={guidelineIsNICE
+                        ? "https://www.nice.org.uk/guidance/cg98"
+                        : "http://publications.aap.org/pediatrics/article-pdf/150/3/e2022058859/1375979/peds_2022058859.pdf"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline mr-1"
+                    >
+                      (Link)
+                    </a>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
