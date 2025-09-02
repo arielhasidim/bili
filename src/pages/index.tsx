@@ -381,7 +381,7 @@ const BilirubinCalculator = () => {
                   <div>
                     <span className="text-sm font-medium text-gray-700">קיום גורמי סיכון נוירוטוקסיים</span>
                     <p className="text-xs text-gray-600 mt-1">
-                      אלבומין &lt;3.0 g/dL, המוליזה (איזואימונית או אחרת), חסר G6PD, ספסיס, או אי יציבות קלינית*
+                      אלבומין &lt;3.0 g/dL, המוליזה (איזואימונית או אחרת), חסר G6PD, ספסיס, או אי יציבות קלינית
                     </p>
                   </div>
                 </label>
