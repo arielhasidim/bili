@@ -302,7 +302,7 @@ const BilirubinCalculator = () => {
             <Calculator className="w-8 h-8 text-blue-600" />
             <h1 className="text-4xl font-bold text-gray-800">מחשבון צהבת ילודים</h1>
           </div>
-          <p className="text-gray-600">טיפול באור והחלפת דם לתינוקות 34-40 שבועות</p>
+          <p className="text-gray-600">גבולות לטיפול באור והחלפת דם לילודים בשבוע לידה 34+</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -335,7 +335,7 @@ const BilirubinCalculator = () => {
                   <option value="37">37 שבועות</option>
                   <option value="38">38 שבועות</option>
                   <option value="39">39 שבועות</option>
-                  <option value="40">40 שבועות</option>
+                  <option value="40">40+ שבועות</option>
                 </select>
               </div>
 
