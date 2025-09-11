@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calculator, Baby, Lightbulb, AlertTriangle, Info, Copy, Check, ChevronDown } from 'lucide-react';
- 
+
 interface BilirubinResult {
   photoThreshold: number;
   exchangeThreshold: number;
@@ -25,6 +25,10 @@ const BilirubinCalculator = () => {
   const [advOpen, setAdvOpen] = useState(false);
   const [maxPhotoCap, setMaxPhotoCap] = useState<string>('18');
   const [maxExchangeCap, setMaxExchangeCap] = useState<string>('25');
+  // גבול ידני לשעות חיים ראשונות (דיפולט: עד 6 שעות, גבול 5 מ"ג/דצ"ל)
+  const [earlyCapHours, setEarlyCapHours] = useState<string>('6');
+  const [earlyCapValue, setEarlyCapValue] = useState<string>('5');
+
   const [saveAdvanced, setSaveAdvanced] = useState<boolean>(true);
 
   // טעינת הגדרות מתקדמות מה-localStorage
@@ -32,10 +36,17 @@ const BilirubinCalculator = () => {
     try {
       const raw = localStorage.getItem('bilirubin_adv_settings');
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { maxPhoto: number | null; maxExchange: number | null };
+      const parsed = JSON.parse(raw) as {
+        maxPhoto: number | null;
+        maxExchange: number | null;
+        earlyHours?: number | null;
+        earlyCap?: number | null;
+      };
       if (parsed && typeof parsed === 'object') {
         if (typeof parsed.maxPhoto === 'number') setMaxPhotoCap(String(parsed.maxPhoto));
         if (typeof parsed.maxExchange === 'number') setMaxExchangeCap(String(parsed.maxExchange));
+        if (typeof parsed.earlyHours === 'number') setEarlyCapHours(String(parsed.earlyHours));
+        if (typeof parsed.earlyCap === 'number') setEarlyCapValue(String(parsed.earlyCap));
         setSaveAdvanced(true);
         setAdvOpen(true); // אם יש הגדרות שמורות - פותחים את הסקשן בתחילת הטעינה
       }
@@ -50,8 +61,10 @@ const BilirubinCalculator = () => {
     }
     const maxPhoto = maxPhotoCap && Number.isFinite(parseFloat(maxPhotoCap)) ? parseFloat(maxPhotoCap) : null;
     const maxExchange = maxExchangeCap && Number.isFinite(parseFloat(maxExchangeCap)) ? parseFloat(maxExchangeCap) : null;
-    localStorage.setItem('bilirubin_adv_settings', JSON.stringify({ maxPhoto, maxExchange }));
-  }, [saveAdvanced, maxPhotoCap, maxExchangeCap]);
+    const earlyHours = earlyCapHours && Number.isFinite(parseFloat(earlyCapHours)) ? parseFloat(earlyCapHours) : null;
+    const earlyCap = earlyCapValue && Number.isFinite(parseFloat(earlyCapValue)) ? parseFloat(earlyCapValue) : null;
+    localStorage.setItem('bilirubin_adv_settings', JSON.stringify({ maxPhoto, maxExchange, earlyHours, earlyCap }));
+  }, [saveAdvanced, maxPhotoCap, maxExchangeCap, earlyCapHours, earlyCapValue]);
 
   // אם נבחר שבוע 34 – ביטול גורמי סיכון (וגם חסימה ב-UI, ראה בהמשך)
   useEffect(() => {
@@ -156,11 +169,23 @@ const BilirubinCalculator = () => {
     // פלאטו ספציפי לפי הכללים
     const special = getPhototherapyPlateauRule(gestAge, hasRiskFactors);
 
+    // גבול ידני לשעות חיים ראשונות
+    const earlyHours = earlyCapHours ? parseFloat(earlyCapHours) : NaN;
+    const earlyCap = earlyCapValue ? parseFloat(earlyCapValue) : NaN;
+    const earlyActive =
+      Number.isFinite(earlyHours) && Number.isFinite(earlyCap) && earlyHours > 0 && earlyCap > 0;
+
     const parts: string[] = [];
 
     for (let currentHour = hours; currentHour <= hours + 96 && currentHour <= 336; currentHour += 4) {
       const base = getThreshold(photoData, mappedGestAgeForPhoto, currentHour);
       if (base == null) continue;
+
+      // החלת גבול ידני לשעות חיים ראשונות (אם פעיל)
+      const baseWithEarly =
+        earlyActive && currentHour <= (earlyHours as number)
+          ? Math.min(base, earlyCap as number)
+          : base;
 
       // 1) פלאטו ידני קודם (ברגע שהדאטה מגיעה לערך ה-cap)
       if (Number.isFinite(manualCap) && base >= (manualCap as number)) {
@@ -175,7 +200,7 @@ const BilirubinCalculator = () => {
       }
 
       // ללא פלאטו בשעה זו — פורמט חדש
-      parts.push(`בגיל ${currentHour} שעות -> גבול ${base.toFixed(1)}`);
+      parts.push(`בגיל ${currentHour} שעות -> גבול ${baseWithEarly.toFixed(1)}`);
     }
 
     return prefix + parts.join(' | ');
@@ -239,6 +264,18 @@ const BilirubinCalculator = () => {
     let photoThreshold = getThreshold(photoData, gestAgeForPhoto, hours);
     let exchangeThreshold = getThreshold(exchangeDataSet, gestAgeForExchange, hours);
 
+    // גבול ידני לשעות חיים ראשונות (מחמיר)
+    const earlyHours = earlyCapHours ? parseFloat(earlyCapHours) : NaN;
+    const earlyCap = earlyCapValue ? parseFloat(earlyCapValue) : NaN;
+    if (
+      photoThreshold != null &&
+      Number.isFinite(earlyHours) && Number.isFinite(earlyCap) &&
+      earlyHours > 0 && earlyCap > 0 &&
+      hours <= earlyHours
+    ) {
+      photoThreshold = Math.min(photoThreshold, earlyCap);
+    }
+
     // החלת גבולות עליונים מהגדרות מתקדמות (override אם נמוך יותר מהדאטה)
     const capPhoto = maxPhotoCap ? parseFloat(maxPhotoCap) : NaN;
     const capExchange = maxExchangeCap ? parseFloat(maxExchangeCap) : NaN;
@@ -248,7 +285,6 @@ const BilirubinCalculator = () => {
     if (exchangeThreshold != null && Number.isFinite(capExchange) && capExchange > 0) {
       exchangeThreshold = Math.min(exchangeThreshold, capExchange);
     }
-
 
     let recommendation = '';
     let urgency: 'normal' | 'moderate' | 'critical' = 'normal';
@@ -280,7 +316,7 @@ const BilirubinCalculator = () => {
 
   useEffect(() => {
     calculateResults();
-  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel, maxPhotoCap, maxExchangeCap]);
+  }, [gestationalAge, hoursOfLife, hasRiskFactors, bilirubinLevel, maxPhotoCap, maxExchangeCap, earlyCapHours, earlyCapValue]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4" dir="rtl">
@@ -405,6 +441,7 @@ const BilirubinCalculator = () => {
                   </button>
                   {advOpen && (
                     <div id="advanced-settings" className="px-4 pb-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mt-4 mb-2">גבולות עליונים</h4>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
                           <label className="block text-sm text-gray-700 mb-1">
@@ -427,6 +464,36 @@ const BilirubinCalculator = () => {
                             value={maxExchangeCap}
                             onChange={(e) => setMaxExchangeCap(e.target.value)}
                             placeholder='למשל 20מ"ג/דצ"ל'
+                            className="w-full p-3 border-0 bg-white rounded-lg focus:ring-2 focus:ring-red-500"
+                          />
+                        </div>
+                      </div>
+                      {/* גבול ידני לשעות חיות ראשונות */}
+                      <h4 className="text-sm font-semibold text-gray-800 mt-2 mb-2">
+                        גבול ידני לטיפול באור בשעות חיות ראשונות
+                      </h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-1">
+                            עד איזה גיל (שעות)
+                          </label>
+                          <input
+                            type="number" min="1" step="1"
+                            value={earlyCapHours}
+                            onChange={(e) => setEarlyCapHours(e.target.value)}
+                            placeholder="למשל 6"
+                            className="w-full p-3 border-0 bg-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-700 mb-1">
+                            גבול לטיפול באור (mg/dL)
+                          </label>
+                          <input
+                            type="number" step="0.1" min="0"
+                            value={earlyCapValue}
+                            onChange={(e) => setEarlyCapValue(e.target.value)}
+                            placeholder='למשל 5מ"ג/דצ"ל'
                             className="w-full p-3 border-0 bg-white rounded-lg focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -601,9 +668,7 @@ const BilirubinCalculator = () => {
             <div className="text-sm text-gray-600 min-w-0 break-words">
               <p className="font-semibold mb-2">הערות חשובות:</p>
               <ul className="space-y-1">
-                <li>• התוצאות מיועדות לסיוע בקבלת החלטות קליניות בלבד</li>
-                <li>• יש להתייעץ עם רופא מומחה לפני קבלת החלטות טיפוליות</li>
-                <li className="font-bold">• בערכים קרובים ל-5מ"ג/דצ"ל בצעירים מגיל 6 שעות יש להתייעץ עם בכיר</li>
+                <li>• התוצאות מיועדות לסיוע בלבד, יש להתייעץ עם רופא מומחה לפני קבלת החלטות רפואיות</li>
                 {Boolean(gestationalAge) && (
                   <li className="mt-3 pt-2 border-t border-gray-200 text-left break-words">
                     {guidelineIsNICE
