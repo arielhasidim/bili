@@ -13,7 +13,7 @@ const BilirubinCalculator = () => {
   const [gestationalAge, setGestationalAge] = useState('');
   const isWeek34 = gestationalAge === '34';
   const guidelineIsNICE = isWeek34; // לשבוע 34 משתמשים ב-NICE, אחרת AAP
-  const [hoursOfLife, setHoursOfLife] = useState('');
+  const [hoursOfLife, setHoursOfLife] = useState('2');
   const [hasRiskFactors, setHasRiskFactors] = useState(false);
   const [bilirubinLevel, setBilirubinLevel] = useState('');
   const [results, setResults] = useState<BilirubinResult | { error: string } | null>(null);
